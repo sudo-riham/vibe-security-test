@@ -1,15 +1,17 @@
 steps:
-  - name: 'ubuntu'
-    entrypoint: 'bash'
-    args:  
-      - '-c'
-      - |
-        echo "==============================="
-        echo " Security Gateway Pipeline"
-        echo " Commit: $COMMIT_SHA"
-        echo " Repository: $REPO_NAME"
-        echo "==============================="
-        echo "Pipeline is alive and ready."
+  # -----------------------------------------------
+  # STEP 1: Secret Detection (Gitleaks)
+  # Scans every file for hardcoded API keys,
+  # passwords, tokens, and credentials
+  # -----------------------------------------------
+  - name: 'zricethezav/gitleaks'
+    entrypoint: 'gitleaks'
+    args:
+      - 'detect'
+      - '--source=.'
+      - '--verbose'
+      - '--no-git'
+    id: 'secret-detection'
 
 options:
   logging: CLOUD_LOGGING_ONLY
