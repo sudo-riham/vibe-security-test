@@ -1,0 +1,15 @@
+steps:
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "==============================="
+        echo " Security Gateway Pipeline"
+        echo " Commit: $COMMIT_SHA"
+        echo " Repository: $REPO_NAME"
+        echo "==============================="
+        echo "Pipeline is alive and ready."
+
+options:
+  logging: CLOUD_LOGGING_ONLY
