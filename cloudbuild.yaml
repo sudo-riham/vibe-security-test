@@ -67,8 +67,8 @@ steps:
           echo "No requirements.txt found - skipping CVE scan."
         fi
     id: 'cve-gate'
- # -----------------------------------------------
-  # STEP 4: Build the container image
+  # -----------------------------------------------
+  # STEP 5: Build the container image
   # -----------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
@@ -80,8 +80,9 @@ steps:
         echo $$IMAGE > /workspace/image-name.txt
         docker build -t $$IMAGE .
     id: 'build-image'
- # -----------------------------------------------
-  # STEP 5: Push image to Artifact Registry
+
+  # -----------------------------------------------
+  # STEP 6: Push image to Artifact Registry
   # -----------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
@@ -94,7 +95,7 @@ steps:
     id: 'push-image'
 
   # -----------------------------------------------
-  # STEP 6: Sign the image (Binary Authorization)
+  # STEP 7: Sign the image (Binary Authorization)
   # Only reached if ALL previous steps passed
   # -----------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
