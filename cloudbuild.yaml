@@ -68,12 +68,29 @@ steps:
         fi
     id: 'cve-gate'
  # -----------------------------------------------
+  # STEP 4: Build the container image
+  # -----------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        IMAGE="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$SHORT_SHA"
+        echo "Building image: $$IMAGE"
+        echo $$IMAGE > /workspace/image-name.txt
+        docker build -t $$IMAGE .
+    id: 'build-image'
+ # -----------------------------------------------
   # STEP 5: Push image to Artifact Registry
   # -----------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
     args:
-      - 'push'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$COMMIT_SHA'
+      - '-c'
+      - |
+        IMAGE=$$(cat /workspace/image-name.txt)
+        echo "Pushing image: $$IMAGE"
+        docker push $$IMAGE
     id: 'push-image'
 
   # -----------------------------------------------
@@ -85,17 +102,16 @@ steps:
     args:
       - '-c'
       - |
+        IMAGE=$$(cat /workspace/image-name.txt)
         echo "All security checks passed."
-        echo "Signing image with security gateway attestor..."
+        echo "Signing image: $$IMAGE"
 
-        IMAGE_URL="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$COMMIT_SHA"
-
-        # Get the image digest (unique fingerprint of this exact image)
-        IMAGE_DIGEST=$(gcloud artifacts docker images describe \
-          $$IMAGE_URL \
+        IMAGE_DIGEST=$$(gcloud artifacts docker images describe \
+          $$IMAGE \
           --format='get(image_summary.digest)')
 
-        # Sign the image using the attestor and KMS key
+        echo "Image digest: $$IMAGE_DIGEST"
+
         gcloud container binauthz attestations sign-and-create \
           --artifact-url="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME@$$IMAGE_DIGEST" \
           --attestor=security-gateway-attestor \
@@ -104,12 +120,12 @@ steps:
           --keyversion-location=us-central1 \
           --keyversion-keyring=security-gateway-keyring \
           --keyversion-key=security-gateway-signer \
-          --keyversion-version=1
+          --keyversion=1
 
         echo "Image signed successfully."
         echo "This image is now authorized for production deployment."
     id: 'sign-image'
-
+    
 options:
   logging: CLOUD_LOGGING_ONLY
 
