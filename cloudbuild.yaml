@@ -13,9 +13,6 @@ steps:
 
   # -----------------------------------------------
   # STEP 2: SAST Scanning (Semgrep)
-  # Scans code logic for security vulnerabilities
-  # SQL injection, XSS, insecure functions, and
-  # common AI-coding mistakes
   # -----------------------------------------------
   - name: 'returntocorp/semgrep'
     entrypoint: 'semgrep'
@@ -24,6 +21,7 @@ steps:
       - '--config=auto'
       - '--severity=WARNING'
       - '--severity=ERROR'
+      - '--error'
       - '--json-output=/workspace/semgrep-results.json'
       - '.'
     id: 'sast-scan'
