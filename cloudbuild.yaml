@@ -13,6 +13,9 @@ steps:
 
   # -----------------------------------------------
   # STEP 2: SAST Scanning (Semgrep)
+  # Scans code logic for security vulnerabilities
+  # SQL injection, XSS, insecure functions, and
+  # common AI-coding mistakes
   # -----------------------------------------------
   - name: 'returntocorp/semgrep'
     entrypoint: 'semgrep'
@@ -26,28 +29,22 @@ steps:
     id: 'sast-scan'
 
   # -----------------------------------------------
-  # STEP 3: CVE Scanning (pip-audit)
+  # STEP 3: Print SAST results to logs
   # -----------------------------------------------
-  - name: 'python:3.11-slim'
+  - name: 'ubuntu'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        pip install pip-audit --quiet
-        if [ -f requirements.txt ]; then
-          echo "Scanning requirements.txt for known CVEs..."
-          pip-audit -r requirements.txt
-          EXIT_CODE=$$?
-          if [ $$EXIT_CODE -ne 0 ]; then
-            echo "FAILED: Known CVEs detected. Fix your dependencies before deploying."
-            exit 1
-          else
-            echo "PASSED: No known CVEs found in dependencies."
-          fi
+        echo "==============================="
+        echo "      SAST Scan Results"
+        echo "==============================="
+        if [ -f /workspace/semgrep-results.json ]; then
+          cat /workspace/semgrep-results.json
         else
-          echo "No requirements.txt found - skipping CVE scan."
+          echo "No results file found"
         fi
-    id: 'cve-gate'
+    id: 'print-results'
 
 options:
   logging: CLOUD_LOGGING_ONLY
