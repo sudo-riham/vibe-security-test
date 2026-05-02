@@ -67,6 +67,20 @@ steps:
           echo "No requirements.txt found - skipping CVE scan."
         fi
     id: 'cve-gate'
+
+  # -----------------------------------------------
+  # DEBUG: List all files Cloud Build can see
+  # -----------------------------------------------
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "==============================="
+        echo " Files in /workspace:"
+        echo "==============================="
+        ls -la /workspace/
+    id: 'debug-workspace'
   # -----------------------------------------------
   # STEP 5: Build the container image
   # -----------------------------------------------
