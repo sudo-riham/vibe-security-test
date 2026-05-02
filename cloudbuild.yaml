@@ -1,8 +1,6 @@
 steps:
   # -----------------------------------------------
   # STEP 1: Secret Detection (Gitleaks)
-  # Scans every file for hardcoded API keys,
-  # passwords, tokens, and credentials
   # -----------------------------------------------
   - name: 'zricethezav/gitleaks'
     entrypoint: 'gitleaks'
@@ -12,6 +10,41 @@ steps:
       - '--verbose'
       - '--no-git'
     id: 'secret-detection'
+
+  # -----------------------------------------------
+  # STEP 2: SAST Scanning (Semgrep)
+  # Scans code logic for security vulnerabilities
+  # SQL injection, XSS, insecure functions, and
+  # common AI-coding mistakes
+  # -----------------------------------------------
+  - name: 'returntocorp/semgrep'
+    entrypoint: 'semgrep'
+    args:
+      - 'scan'
+      - '--config=auto'
+      - '--severity=WARNING'
+      - '--severity=ERROR'
+      - '--json-output=/workspace/semgrep-results.json'
+      - '.'
+    id: 'sast-scan'
+
+  # -----------------------------------------------
+  # STEP 3: Print SAST results to logs
+  # -----------------------------------------------
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "==============================="
+        echo "      SAST Scan Results"
+        echo "==============================="
+        if [ -f /workspace/semgrep-results.json ]; then
+          cat /workspace/semgrep-results.json
+        else
+          echo "No results file found"
+        fi
+    id: 'print-results'
 
 options:
   logging: CLOUD_LOGGING_ONLY
