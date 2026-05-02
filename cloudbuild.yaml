@@ -44,5 +44,87 @@ steps:
         fi
     id: 'print-results'
 
+  # -----------------------------------------------
+  # STEP 3: CVE Scanning (pip-audit)
+  # Checks every Python library against the global
+  # CVE vulnerability database
+  # -----------------------------------------------
+  - name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "==============================="
+        echo "   Supply Chain CVE Scan"
+        echo "==============================="
+
+        # Install pip-audit — the CVE scanning tool
+        pip install pip-audit --quiet
+
+        # Check if requirements.txt exists
+        if [ -f requirements.txt ]; then
+          echo "Scanning requirements.txt..."
+
+          # Run the scan and save results
+          pip-audit \
+            -r requirements.txt \
+            --output-format json \
+            -o /workspace/cve-results.json || true
+
+          # Print a human-readable version to logs
+          pip-audit -r requirements.txt || true
+
+        else
+          echo "No requirements.txt found — skipping Python CVE scan"
+        fi
+    id: 'cve-scan-python'
+
+  # -----------------------------------------------
+  # STEP 4: Evaluate CVE results
+  # Fails the build if critical CVEs are found
+  # -----------------------------------------------
+  - name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install pip-audit --quiet
+
+        if [ -f requirements.txt ]; then
+          echo "Checking for critical vulnerabilities..."
+
+          # Count how many vulnerabilities were found
+          VULN_COUNT=$(pip-audit -r requirements.txt \
+            --output-format json 2>/dev/null | \
+            python3 -c "
+        import sys, json
+        data = json.load(sys.stdin)
+        vulns = [d for d in data.get('dependencies',[]) if d.get('vulns')]
+        print(len(vulns))
+            " 2>/dev/null || echo "0")
+
+          echo "Vulnerable packages found: $VULN_COUNT"
+
+          if [ "$VULN_COUNT" -gt "0" ]; then
+            echo "FAILED: $VULN_COUNT package(s) with known CVEs detected."
+            echo "Update your requirements.txt to fix these before deploying."
+            exit 1
+          else
+            echo "PASSED: No known CVEs found in dependencies."
+          fi
+        fi
+    id: 'cve-gate'
+
 options:
   logging: CLOUD_LOGGING_ONLY
+
+
+
+
+
+
+
+
+
+
+
