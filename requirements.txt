@@ -1,6 +1,6 @@
-flask==1.0.0
-requests==2.18.0
-Pillow==8.0.0
-pyyaml==5.1
-urllib3==1.24.1
-cryptography==2.6
+flask==3.0.0
+requests==2.31.0
+Pillow==10.1.0
+pyyaml==6.0.1
+urllib3==2.1.0
+cryptography==41.0.5
