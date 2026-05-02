@@ -36,28 +36,16 @@ steps:
         pip install pip-audit --quiet
         if [ -f requirements.txt ]; then
           echo "Scanning requirements.txt for known CVEs..."
-          pip-audit -r requirements.txt || true
-
-          VULN_COUNT=$$(pip-audit -r requirements.txt \
-            --output-format json 2>/dev/null | \
-            python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-vulns = [d for d in data.get('dependencies',[]) if d.get('vulns')]
-print(len(vulns))
-            " 2>/dev/null || echo "0")
-
-          echo "Vulnerable packages found: $$VULN_COUNT"
-
-          if [ "$$VULN_COUNT" -gt "0" ]; then
-            echo "FAILED: $$VULN_COUNT package(s) with known CVEs detected."
-            echo "Update your requirements.txt to fix these before deploying."
+          pip-audit -r requirements.txt
+          EXIT_CODE=$$?
+          if [ $$EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Known CVEs detected. Fix your dependencies before deploying."
             exit 1
           else
             echo "PASSED: No known CVEs found in dependencies."
           fi
         else
-          echo "No requirements.txt found — skipping CVE scan."
+          echo "No requirements.txt found - skipping CVE scan."
         fi
     id: 'cve-gate'
 
