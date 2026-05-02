@@ -67,6 +67,48 @@ steps:
           echo "No requirements.txt found - skipping CVE scan."
         fi
     id: 'cve-gate'
+ # -----------------------------------------------
+  # STEP 5: Push image to Artifact Registry
+  # -----------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$COMMIT_SHA'
+    id: 'push-image'
+
+  # -----------------------------------------------
+  # STEP 6: Sign the image (Binary Authorization)
+  # Only reached if ALL previous steps passed
+  # -----------------------------------------------
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "All security checks passed."
+        echo "Signing image with security gateway attestor..."
+
+        IMAGE_URL="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$COMMIT_SHA"
+
+        # Get the image digest (unique fingerprint of this exact image)
+        IMAGE_DIGEST=$(gcloud artifacts docker images describe \
+          $$IMAGE_URL \
+          --format='get(image_summary.digest)')
+
+        # Sign the image using the attestor and KMS key
+        gcloud container binauthz attestations sign-and-create \
+          --artifact-url="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME@$$IMAGE_DIGEST" \
+          --attestor=security-gateway-attestor \
+          --attestor-project=$PROJECT_ID \
+          --keyversion-project=$PROJECT_ID \
+          --keyversion-location=us-central1 \
+          --keyversion-keyring=security-gateway-keyring \
+          --keyversion-key=security-gateway-signer \
+          --keyversion-version=1
+
+        echo "Image signed successfully."
+        echo "This image is now authorized for production deployment."
+    id: 'sign-image'
 
 options:
   logging: CLOUD_LOGGING_ONLY
