@@ -160,7 +160,6 @@ steps:
 
   # -----------------------------------------------
   # STEP 8: DAST Scanning (OWASP ZAP)
-  # Attacks the live preview environment
   # -----------------------------------------------
   - name: 'ghcr.io/zaproxy/zaproxy:stable'
     entrypoint: 'bash'
@@ -173,9 +172,6 @@ steps:
         echo "   Target: $$PREVIEW_URL"
         echo "==============================="
 
-        # Run ZAP baseline scan
-        # Baseline = passive scan + basic active rules
-        # Fast enough for a CI/CD pipeline
         zap-baseline.py \
           -t $$PREVIEW_URL \
           -J /workspace/zap-results.json \
@@ -186,21 +182,11 @@ steps:
         echo "ZAP scan complete."
         echo "Checking for high severity findings..."
 
-        # Count high and critical findings
-        HIGH_COUNT=$$(python3 -c "
-import json, sys
-with open('/workspace/zap-results.json') as f:
-    data = json.load(f)
-alerts = data.get('site', [{}])[0].get('alerts', [])
-high = [a for a in alerts if a.get('riskcode') in ['3', '4']]
-print(len(high))
-" 2>/dev/null || echo "0")
-
+        HIGH_COUNT=$$(python3 /workspace/check_zap.py)
         echo "High/Critical findings: $$HIGH_COUNT"
 
         if [ "$$HIGH_COUNT" -gt "0" ]; then
           echo "FAILED: $$HIGH_COUNT high severity finding(s) detected."
-          echo "Review zap-results.json for details."
           exit 1
         else
           echo "PASSED: No high severity findings."
