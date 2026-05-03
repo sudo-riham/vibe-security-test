@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vibe Store</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        input { padding: 8px; width: 300px; margin-right: 10px; }
+        button { padding: 8px 16px; background: #007bff; color: white; border: none; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f4f4f4; }
+        .no-results { color: #999; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Vibe Store</h1>
+    <p>Search for products below:</p>
+
+    <form method="GET" action="/search">
+        <input
+            type="text"
+            name="q"
+            placeholder="Search products..."
+            value="{{ query | e }}">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if query %}
+        <p>Results for: <strong>{{ query | e }}</strong></p>
+        {% if results %}
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Price</th>
+                </tr>
+                {% for product in results %}
+                <tr>
+                    <td>{{ product.id }}</td>
+                    <td>{{ product.name | e }}</td>
+                    <td>{{ product.price | e }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="no-results">No products found for "{{ query | e }}"</p>
+        {% endif %}
+    {% else %}
+        <table>
+            <tr><th>ID</th><th>Product</th><th>Price</th></tr>
+            {% for product in PRODUCTS %}
+            <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.name | e }}</td>
+                <td>{{ product.price | e }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+</body>
+</html>
