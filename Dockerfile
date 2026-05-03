@@ -23,4 +23,4 @@ USER appuser
 EXPOSE 8080
 
 # Default command
-CMD ["python", "-m", "http.server", "8080"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "app:app"]
