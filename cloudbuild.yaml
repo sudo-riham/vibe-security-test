@@ -126,6 +126,103 @@ steps:
         echo "Image signed successfully."
         echo "This image is now authorized for production deployment."
     id: 'sign-image'
+
+  # -----------------------------------------------
+  # STEP 7: Deploy temporary preview to Cloud Run
+  # ZAP needs a live URL to scan
+  # -----------------------------------------------
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        IMAGE=$$(cat /workspace/image-name.txt)
+        echo "Deploying temporary preview environment..."
+
+        gcloud run deploy preview-$SHORT_SHA \
+          --image=$$IMAGE \
+          --platform=managed \
+          --region=us-central1 \
+          --allow-unauthenticated \
+          --port=8080 \
+          --max-instances=1 \
+          --quiet
+
+        # Get the deployed URL and save it for ZAP
+        PREVIEW_URL=$$(gcloud run services describe preview-$SHORT_SHA \
+          --platform=managed \
+          --region=us-central1 \
+          --format='value(status.url)')
+
+        echo "Preview deployed at: $$PREVIEW_URL"
+        echo $$PREVIEW_URL > /workspace/preview-url.txt
+    id: 'deploy-preview'
+
+  # -----------------------------------------------
+  # STEP 8: DAST Scanning (OWASP ZAP)
+  # Attacks the live preview environment
+  # -----------------------------------------------
+  - name: 'ghcr.io/zaproxy/zaproxy:stable'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        PREVIEW_URL=$$(cat /workspace/preview-url.txt)
+        echo "==============================="
+        echo "   DAST Scan Starting"
+        echo "   Target: $$PREVIEW_URL"
+        echo "==============================="
+
+        # Run ZAP baseline scan
+        # Baseline = passive scan + basic active rules
+        # Fast enough for a CI/CD pipeline
+        zap-baseline.py \
+          -t $$PREVIEW_URL \
+          -J /workspace/zap-results.json \
+          -r /workspace/zap-report.html \
+          -I \
+          --auto || true
+
+        echo "ZAP scan complete."
+        echo "Checking for high severity findings..."
+
+        # Count high and critical findings
+        HIGH_COUNT=$$(python3 -c "
+import json, sys
+with open('/workspace/zap-results.json') as f:
+    data = json.load(f)
+alerts = data.get('site', [{}])[0].get('alerts', [])
+high = [a for a in alerts if a.get('riskcode') in ['3', '4']]
+print(len(high))
+" 2>/dev/null || echo "0")
+
+        echo "High/Critical findings: $$HIGH_COUNT"
+
+        if [ "$$HIGH_COUNT" -gt "0" ]; then
+          echo "FAILED: $$HIGH_COUNT high severity finding(s) detected."
+          echo "Review zap-results.json for details."
+          exit 1
+        else
+          echo "PASSED: No high severity findings."
+        fi
+    id: 'dast-scan'
+
+  # -----------------------------------------------
+  # STEP 9: Delete the temporary preview environment
+  # Always runs — even if ZAP fails
+  # -----------------------------------------------
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Deleting temporary preview environment..."
+        gcloud run services delete preview-$SHORT_SHA \
+          --platform=managed \
+          --region=us-central1 \
+          --quiet || true
+        echo "Preview environment deleted."
+    id: 'cleanup-preview'
 options:
   logging: CLOUD_LOGGING_ONLY
 
