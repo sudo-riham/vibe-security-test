@@ -209,6 +209,40 @@ steps:
           --quiet || true
         echo "Preview environment deleted."
     id: 'cleanup-preview'
+
+  # -----------------------------------------------
+  # STEP 10: Deploy to Production (Cloud Run)
+  # Only runs if ALL previous steps passed
+  # This is your permanent live app
+  # -----------------------------------------------
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        IMAGE=$$(cat /workspace/image-name.txt)
+        echo "Deploying to production..."
+
+        gcloud run deploy vibe-security-app \
+          --image=$$IMAGE \
+          --platform=managed \
+          --region=us-central1 \
+          --allow-unauthenticated \
+          --port=8080 \
+          --max-instances=3 \
+          --quiet
+
+        PROD_URL=$$(gcloud run services describe vibe-security-app \
+          --platform=managed \
+          --region=us-central1 \
+          --format='value(status.url)')
+
+        echo "==============================="
+        echo " Production deployment complete"
+        echo " Live URL: $$PROD_URL"
+        echo "==============================="
+    id: 'deploy-production'
+    
 options:
   logging: CLOUD_LOGGING_ONLY
 
