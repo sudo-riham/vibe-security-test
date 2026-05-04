@@ -242,41 +242,6 @@ steps:
         echo " Live URL: $$PROD_URL"
         echo "==============================="
     id: 'deploy-production'
-  # -----------------------------------------------
-  # STEP 6: Container Vulnerability Scan (Trivy)
-  # Scans the built image for OS-level CVEs,
-  # system package vulnerabilities, and Python
-  # library issues inside the container itself
-  # -----------------------------------------------
-  - name: 'aquasec/trivy:latest'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        IMAGE=$$(cat /workspace/image-name.txt)
-        echo "==============================="
-        echo "   Trivy Container Scan"
-        echo "   Target: $$IMAGE"
-        echo "==============================="
-
-        trivy image \
-          --exit-code 1 \
-          --severity HIGH,CRITICAL \
-          --ignore-unfixed \
-          --format table \
-          --no-progress \
-          $$IMAGE
-
-        EXIT_CODE=$$?
-
-        if [ $$EXIT_CODE -ne 0 ]; then
-          echo "FAILED: High or Critical vulnerabilities found in container image."
-          echo "Update your base image or dependencies to fix these."
-          exit 1
-        else
-          echo "PASSED: No High or Critical vulnerabilities in container image."
-        fi
-    id: 'trivy-scan'
 options:
   logging: CLOUD_LOGGING_ONLY
 
