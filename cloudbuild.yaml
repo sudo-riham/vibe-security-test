@@ -82,6 +82,47 @@ steps:
     id: 'build-image'
 
   # -----------------------------------------------
+  # STEP 5: JavaScript Dependency Scan (npm audit)
+  # Scans package.json for known vulnerabilities
+  # in JavaScript/Node.js dependencies.
+  # Skips automatically if no package.json found.
+  # -----------------------------------------------
+  - name: 'node:20-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "==============================="
+        echo "   JavaScript CVE Scan"
+        echo "   (npm audit)"
+        echo "==============================="
+
+        if [ -f package.json ]; then
+          echo "package.json found — scanning dependencies..."
+
+          # Install dependencies first so audit has something to scan
+          npm install --quiet
+
+          # Run audit — only fail on high and critical
+          npm audit --audit-level=high
+
+          EXIT_CODE=$$?
+          if [ $$EXIT_CODE -ne 0 ]; then
+            echo "FAILED: High or Critical npm vulnerabilities detected."
+            echo "Run 'npm audit fix' locally to resolve them."
+            exit 1
+          else
+            echo "PASSED: No High or Critical npm vulnerabilities found."
+          fi
+
+        else
+          echo "No package.json found — skipping npm audit."
+          echo "PASSED: Not a JavaScript project."
+        fi
+    id: 'npm-audit'
+
+
+  # -----------------------------------------------
   # STEP 5: Push image to Artifact Registry
   # -----------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
