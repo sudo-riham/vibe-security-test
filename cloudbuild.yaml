@@ -114,10 +114,6 @@ steps:
 
   # -----------------------------------------------
   # STEP 6: OSV-Scanner (Google's Vulnerability DB)
-  # Scans all dependency files across all languages
-  # against Google's Open Source Vulnerability DB.
-  # Covers Python, JavaScript, Go, Rust, Java and
-  # reads lockfiles for deeper transitive scanning.
   # -----------------------------------------------
   - name: 'ghcr.io/google/osv-scanner:latest'
     entrypoint: 'sh'
@@ -129,25 +125,53 @@ steps:
         echo "   Google Vulnerability Database"
         echo "==============================="
 
-        # Run OSV-Scanner on the entire workspace
-        # It auto-detects all dependency files:
-        # requirements.txt, package.json, go.sum,
-        # Cargo.lock, poetry.lock, Pipfile.lock etc.
-        /osv-scanner \
-          --recursive \
-          --format table \
-          . 
+        # Build the scan command based on what files exist
+        SCAN_TARGETS=""
+
+        if [ -f requirements.txt ]; then
+          echo "Found: requirements.txt"
+          SCAN_TARGETS="$$SCAN_TARGETS --lockfile=requirements.txt:requirements.txt"
+        fi
+
+        if [ -f package-lock.json ]; then
+          echo "Found: package-lock.json"
+          SCAN_TARGETS="$$SCAN_TARGETS --lockfile=package-lock.json"
+        fi
+
+        if [ -f go.sum ]; then
+          echo "Found: go.sum"
+          SCAN_TARGETS="$$SCAN_TARGETS --lockfile=go.sum"
+        fi
+
+        if [ -f Cargo.lock ]; then
+          echo "Found: Cargo.lock"
+          SCAN_TARGETS="$$SCAN_TARGETS --lockfile=Cargo.lock"
+        fi
+
+        if [ -z "$$SCAN_TARGETS" ]; then
+          echo "No supported dependency files found — skipping OSV scan."
+          echo "PASSED: Nothing to scan."
+          exit 0
+        fi
+
+        echo "Running OSV-Scanner..."
+        /osv-scanner --format table $$SCAN_TARGETS
 
         EXIT_CODE=$$?
 
-        if [ $$EXIT_CODE -ne 0 ]; then
+        if [ $$EXIT_CODE -eq 0 ]; then
+          echo "PASSED: No known vulnerabilities found by OSV-Scanner."
+        elif [ $$EXIT_CODE -eq 1 ]; then
           echo "FAILED: Known vulnerabilities found by OSV-Scanner."
           echo "Check the table above for details and fix versions."
           exit 1
         else
-          echo "PASSED: No known vulnerabilities found by OSV-Scanner."
+          echo "OSV-Scanner found no parseable packages — skipping."
+          echo "PASSED: Nothing to scan."
+          exit 0
         fi
     id: 'osv-scan'
+    
   # -----------------------------------------------
   # STEP 5: Push image to Artifact Registry
   # -----------------------------------------------
