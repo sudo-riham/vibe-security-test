@@ -45,7 +45,7 @@ steps:
     id: 'print-results'
 
   # -----------------------------------------------
-  # STEP 3: CVE Scanning (pip-audit)
+  # STEP 4: CVE Scanning (pip-audit)
   # -----------------------------------------------
   - name: 'python:3.11-slim'
     entrypoint: 'bash'
@@ -68,18 +68,10 @@ steps:
         fi
     id: 'cve-gate'
   # -----------------------------------------------
-  # STEP 4: Build the container image
+  # STEP 5: JavaScript CVE Scanning (npm audit)
+  # Checks package.json against the npm security
+  # advisory database. Skips if no package.json.
   # -----------------------------------------------
-  - name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        IMAGE="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$SHORT_SHA"
-        echo "Building image: $$IMAGE"
-        echo $$IMAGE > /workspace/image-name.txt
-        docker build -t $$IMAGE .
-    id: 'build-image'
   - name: 'node:20-slim'
     entrypoint: 'bash'
     args:
@@ -171,9 +163,21 @@ steps:
           exit 0
         fi
     id: 'osv-scan'
-    
   # -----------------------------------------------
-  # STEP 5: Push image to Artifact Registry
+  # STEP 7: Build the container image
+  # -----------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        IMAGE="us-central1-docker.pkg.dev/$PROJECT_ID/security-gateway/$REPO_NAME:$SHORT_SHA"
+        echo "Building image: $$IMAGE"
+        echo $$IMAGE > /workspace/image-name.txt
+        docker build -t $$IMAGE .
+    id: 'build-image'  
+  # -----------------------------------------------
+  # STEP 8: Push image to Artifact Registry
   # -----------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
@@ -186,7 +190,7 @@ steps:
     id: 'push-image'
 
   # -----------------------------------------------
-  # STEP 6: Sign the image (Binary Authorization)
+  # STEP 9: Sign the image (Binary Authorization)
   # Only reached if ALL previous steps passed
   # -----------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -219,7 +223,7 @@ steps:
     id: 'sign-image'
 
   # -----------------------------------------------
-  # STEP 7: Deploy temporary preview to Cloud Run
+  # STEP 10: Deploy temporary preview to Cloud Run
   # ZAP needs a live URL to scan
   # -----------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -250,7 +254,7 @@ steps:
     id: 'deploy-preview'
 
   # -----------------------------------------------
-  # STEP 8: DAST Scanning (OWASP ZAP)
+  # STEP 11: DAST Scanning (OWASP ZAP)
   # -----------------------------------------------
   - name: 'ghcr.io/zaproxy/zaproxy:stable'
     entrypoint: 'bash'
@@ -285,7 +289,7 @@ steps:
     id: 'dast-scan'
 
   # -----------------------------------------------
-  # STEP 9: Delete the temporary preview environment
+  # STEP 12: Delete the temporary preview environment
   # Always runs — even if ZAP fails
   # -----------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
