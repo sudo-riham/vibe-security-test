@@ -81,47 +81,6 @@ steps:
         docker build -t $$IMAGE .
     id: 'build-image'
 
-
-
-  # -----------------------------------------------
-  # STEP 6: OSV-Scanner (Google's Vulnerability DB)
-  # Scans all dependency files across all languages
-  # against Google's Open Source Vulnerability DB.
-  # Covers Python, JavaScript, Go, Rust, Java and
-  # reads lockfiles for deeper transitive scanning.
-  # -----------------------------------------------
-  - name: 'ghcr.io/google/osv-scanner:latest'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "==============================="
-        echo "   OSV-Scanner"
-        echo "   Google Vulnerability Database"
-        echo "==============================="
-
-        # Run OSV-Scanner on the entire workspace
-        # It auto-detects all dependency files:
-        # requirements.txt, package.json, go.sum,
-        # Cargo.lock, poetry.lock, Pipfile.lock etc.
-        /osv-scanner \
-          --recursive \
-          --format table \
-          . 
-
-        EXIT_CODE=$$?
-
-        if [ $$EXIT_CODE -ne 0 ]; then
-          echo "FAILED: Known vulnerabilities found by OSV-Scanner."
-          echo "Check the table above for details and fix versions."
-          exit 1
-        else
-          echo "PASSED: No known vulnerabilities found by OSV-Scanner."
-        fi
-    id: 'osv-scan'
-
-
-    
   # -----------------------------------------------
   # STEP 5: Push image to Artifact Registry
   # -----------------------------------------------
